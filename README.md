@@ -78,6 +78,7 @@ pg-local [options]
 | Option | Description | Default | Example |
 |--------|-------------|---------|---------|
 | `--db=<path>` | Database path | `memory://` | `--db=./data/mydb` |
+| `--dbname=<name>` | Custom database name | `template1` | `--dbname=mydb` |
 | `--port=<port>` | Port to listen on | `5432` | `--port=5433` |
 | `--host=<host>` | Host to bind to | `127.0.0.1` | `--host=0.0.0.0` |
 | `--debug=<level>` | Debug level (0-5) | `0` | `--debug=1` |
@@ -98,6 +99,9 @@ pg-local [options]
 # Quick development setup
 local-pg --db=memory:// --debug=1
 
+# Custom database name
+local-pg --dbname=myappdb
+
 # Persistent database on custom port
 local-pg --db=./data/myapp --port=5433
 
@@ -105,7 +109,7 @@ local-pg --db=./data/myapp --port=5433
 local-pg --host=0.0.0.0
 
 # Production-like setup
-local-pg --db=/var/lib/pglite/myapp --port=5432
+local-pg --db=/var/lib/pglite/myapp --port=5432 --dbname=production
 
 # Show version
 local-pg --version
@@ -185,13 +189,14 @@ import { startPGliteServer } from 'local-pg';
 // Start server programmatically
 const server = await startPGliteServer({
   db: './my-app-db',
+  dbname: 'myappdb', // Custom database name
   port: 5432,
   host: 'localhost',
   debug: 1
 });
 
 console.log('Connection string:', server.connectionString);
-// postgres://postgres@localhost:5432/template1
+// postgres://postgres@localhost:5432/myappdb
 
 // Use the database
 const result = await server.db.query('SELECT * FROM users');
@@ -285,9 +290,10 @@ lsof -i :5432
 - **Development**: No need to install PostgreSQL locally
 - **Testing**: Isolated test databases for each test suite
 - **CI/CD**: Lightweight database for automated tests
-- **Prototyping**: Quick database setup for experiments
+- **Prototyping**: Quick database setup with custom database names
 - **Education**: Learning PostgreSQL without complex setup
 - **Edge Computing**: Portable database for edge applications
+- **ORM Integration**: Use custom database names for compatibility with ORM tools
 
 ## File Structure
 
@@ -297,10 +303,14 @@ local-pg/
 ├── index.js                  # Main module exports
 ├── bin/
 │   └── local-pg.js           # CLI executable
+├── custom-handler.js         # Low-level socket implementation
 ├── test-client.js            # Connection test utility
-├── README.md                 # Documentation
+├── test-custom-db.js         # Custom database name test utility
+├── README.md                 # Main documentation
+├── CUSTOM_DB.md              # Custom database name documentation
+├── CUSTOM_DB_FEATURE.md      # Detailed feature documentation
 ├── LICENSE                   # MIT License
-└── .gitignore               # Git ignore rules
+└── .gitignore                # Git ignore rules
 ```
 
 ## Making it Global
