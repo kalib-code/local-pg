@@ -1,6 +1,6 @@
 {
   "name": "@marculosus/local-pg",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Global CLI tool to run PGlite as a PostgreSQL-compatible server with wire protocol support",
   "main": "index.js",
   "type": "module",
