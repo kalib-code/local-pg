@@ -10,11 +10,15 @@
   },
   "scripts": {
     "test": "node test-client.js",
-    "prepublishOnly": "echo 'Ready to publish to npm'"
+    "test:web": "node test-web-interface.js",
+    "setup:web": "node setup-web.js",
+    "prepublishOnly": "echo 'Ready to publish to npm' && npm run setup:web"
   },
   "files": [
     "bin/",
     "lib/",
+    "pgweb/",
+    "setup-web.js",
     "README.md",
     "LICENSE"
   ],

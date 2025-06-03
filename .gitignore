@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+pgweb/node_modules/
+pgweb/.next/
+pgweb/out/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

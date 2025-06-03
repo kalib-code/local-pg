@@ -1,6 +1,6 @@
 # Local PG 🐘
 
-A global CLI tool that runs PGlite as a PostgreSQL-compatible server. Connect with any PostgreSQL client using standard connection strings!
+A global CLI tool that runs PGlite as a PostgreSQL-compatible server. Connect with any PostgreSQL client using standard connection strings or use the built-in web interface for database management!
 
 ## Features
 
@@ -9,6 +9,7 @@ A global CLI tool that runs PGlite as a PostgreSQL-compatible server. Connect wi
 - 🔌 **Standard PostgreSQL wire protocol** - Connect with any PostgreSQL client
 - 💾 **Persistent or in-memory storage** - Choose what fits your needs
 - 🛠️ **Simple CLI interface** - Easy command-line usage
+- 🌐 **Web IDE** - Built-in web interface for querying and managing your database
 - 🔍 **Debug support** - Built-in debugging capabilities
 - ⚡ **Lightweight** - Only ~3MB, runs entirely in WebAssembly
 
@@ -20,6 +21,9 @@ A global CLI tool that runs PGlite as a PostgreSQL-compatible server. Connect wi
 # Install globally from npm
 npm install -g local-pg
 
+# Set up the web interface (optional but recommended)
+npm run setup:web -g local-pg
+
 # Now you can use it anywhere
 local-pg --help
 ```
@@ -29,6 +33,9 @@ local-pg --help
 ```bash
 # Install locally in your project
 npm install local-pg
+
+# Set up the web interface (optional but recommended)
+npx local-pg setup:web
 
 # Use with npx
 npx local-pg --help
@@ -82,6 +89,8 @@ pg-local [options]
 | `--port=<port>` | Port to listen on | `5432` | `--port=5433` |
 | `--host=<host>` | Host to bind to | `127.0.0.1` | `--host=0.0.0.0` |
 | `--debug=<level>` | Debug level (0-5) | `0` | `--debug=1` |
+| `--no-web` | Disable web interface | Web enabled | `--no-web` |
+| `--web-port=<port>` | Web interface port | `3000` | `--web-port=8080` |
 | `--version, -v` | Show version | - | `--version` |
 | `--help, -h` | Show help | - | `--help` |
 
@@ -96,14 +105,17 @@ pg-local [options]
 ### Examples
 
 ```bash
-# Quick development setup
-local-pg --db=memory:// --debug=1
+# Quick development setup with web interface (default)
+local-pg
+
+# Start with debug output and custom web port
+local-pg --db=memory:// --debug=1 --web-port=8080
 
 # Custom database name
 local-pg --dbname=myappdb
 
-# Persistent database on custom port
-local-pg --db=./data/myapp --port=5433
+# Persistent database on custom port (no web interface)
+local-pg --db=./data/myapp --port=5433 --no-web
 
 # Bind to all network interfaces
 local-pg --host=0.0.0.0
@@ -154,7 +166,36 @@ export PGUSER=postgres
 psql
 ```
 
-### Other Tools
+### Web Interface
+
+Local PG comes with a built-in web-based database IDE that lets you:
+
+- Browse database tables
+- Run SQL queries
+- View query results in a tabular format
+- Easily manage your database without external tools
+
+### Using the Web Interface
+
+When you start Local PG, the web interface automatically launches and is accessible at:
+
+```
+http://localhost:3000
+```
+
+You can customize the web interface port:
+
+```bash
+local-pg --web-port=8080
+```
+
+Or disable it completely:
+
+```bash
+local-pg --no-web
+```
+
+## Other Tools
 
 - **DBeaver**: Host=localhost, Port=5432, Database=template1, User=postgres
 - **pgAdmin**: Same connection details as above
@@ -292,8 +333,10 @@ lsof -i :5432
 - **CI/CD**: Lightweight database for automated tests
 - **Prototyping**: Quick database setup with custom database names
 - **Education**: Learning PostgreSQL without complex setup
+- **Database Management**: Built-in web IDE for SQL queries and data visualization
 - **Edge Computing**: Portable database for edge applications
 - **ORM Integration**: Use custom database names for compatibility with ORM tools
+- **Data Exploration**: Web interface for exploring and visualizing database content
 
 ## File Structure
 
@@ -306,6 +349,12 @@ local-pg/
 ├── custom-handler.js         # Low-level socket implementation
 ├── test-client.js            # Connection test utility
 ├── test-custom-db.js         # Custom database name test utility
+├── pgweb/                    # Web interface React app
+│   ├── package.json          # Web app dependencies
+│   ├── src/                  # React source code
+│   │   ├── app/              # Next.js app directory
+│   │   └── components/       # React components
+│   └── public/               # Static assets
 ├── README.md                 # Main documentation
 ├── CUSTOM_DB.md              # Custom database name documentation
 ├── CUSTOM_DB_FEATURE.md      # Detailed feature documentation
