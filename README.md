@@ -10,6 +10,7 @@ A global CLI tool that runs PGlite as a PostgreSQL-compatible server. Connect wi
 - 💾 **Persistent or in-memory storage** - Choose what fits your needs
 - 🛠️ **Simple CLI interface** - Easy command-line usage
 - 🌐 **Web IDE** - Built-in web interface for querying and managing your database
+- 🎨 **Local PG Studio** - Enhanced web interface with modern UI
 - 🔍 **Debug support** - Built-in debugging capabilities
 - ⚡ **Lightweight** - Only ~3MB, runs entirely in WebAssembly
 
@@ -21,8 +22,8 @@ A global CLI tool that runs PGlite as a PostgreSQL-compatible server. Connect wi
 # Install globally from npm
 npm install -g local-pg
 
-# Set up the web interface (optional but recommended)
-npm run setup:web -g local-pg
+# Set up the Local PG Studio (recommended)
+npx local-pg setup:studio
 
 # Now you can use it anywhere
 local-pg --help
@@ -34,8 +35,8 @@ local-pg --help
 # Install locally in your project
 npm install local-pg
 
-# Set up the web interface (optional but recommended)
-npx local-pg setup:web
+# Set up the Local PG Studio (recommended)
+npx local-pg setup:studio
 
 # Use with npx
 npx local-pg --help
@@ -76,7 +77,7 @@ postgres://postgres@localhost:5432/template1
 ```bash
 local-pg [options]
 
-# Alternative command
+# Alternative command (also available)
 pg-local [options]
 ```
 
@@ -85,12 +86,10 @@ pg-local [options]
 | Option | Description | Default | Example |
 |--------|-------------|---------|---------|
 | `--db=<path>` | Database path | `memory://` | `--db=./data/mydb` |
-| `--dbname=<name>` | Custom database name | `template1` | `--dbname=mydb` |
 | `--port=<port>` | Port to listen on | `5432` | `--port=5433` |
 | `--host=<host>` | Host to bind to | `127.0.0.1` | `--host=0.0.0.0` |
 | `--debug=<level>` | Debug level (0-5) | `0` | `--debug=1` |
-| `--no-web` | Disable web interface | Web enabled | `--no-web` |
-| `--web-port=<port>` | Web interface port | `3000` | `--web-port=8080` |
+| `--legacy-web` | Enable legacy web interface | Disabled | `--legacy-web` |
 | `--version, -v` | Show version | - | `--version` |
 | `--help, -h` | Show help | - | `--help` |
 
@@ -108,20 +107,18 @@ pg-local [options]
 # Quick development setup with web interface (default)
 local-pg
 
-# Start with debug output and custom web port
-local-pg --db=memory:// --debug=1 --web-port=8080
+# Start with debug output
+local-pg --db=memory:// --debug=1
 
-# Custom database name
-local-pg --dbname=myappdb
 
-# Persistent database on custom port (no web interface)
-local-pg --db=./data/myapp --port=5433 --no-web
+# Persistent database on custom port
+local-pg --db=./data/myapp --port=5433
 
 # Bind to all network interfaces
 local-pg --host=0.0.0.0
 
 # Production-like setup
-local-pg --db=/var/lib/pglite/myapp --port=5432 --dbname=production
+local-pg --db=/var/lib/pglite/myapp --port=1024
 
 # Show version
 local-pg --version
@@ -166,34 +163,36 @@ export PGUSER=postgres
 psql
 ```
 
-### Web Interface
+## Web Interfaces
 
-Local PG comes with a built-in web-based database IDE that lets you:
+Local PG offers the following web interfaces for database management:
 
-- Browse database tables
-- Run SQL queries
-- View query results in a tabular format
-- Easily manage your database without external tools
 
-### Using the Web Interface
+### Local PG Studio (Recommended)
 
-When you start Local PG, the web interface automatically launches and is accessible at:
+Local PG Studio is an enhanced web interface with a modern UI and additional features:
 
-```
-http://localhost:3000
-```
+- Browse database schema
+- View and edit table data
+- Execute custom SQL queries with improved editor
+- Real-time connection to Local PG
 
-You can customize the web interface port:
+To use Local PG Studio:
 
 ```bash
-local-pg --web-port=8080
+# Step 1: Run the setup script (only needed once)
+npx local-pg setup:studio
+
+# Step 2: Start the local-pg server
+local-pg
+
+# Step 3: In another terminal, start Local PG Studio
+npx local-pg start:studio
 ```
 
-Or disable it completely:
+Access it at: http://localhost:3000
 
-```bash
-local-pg --no-web
-```
+> Note: The studio will automatically connect to the local-pg server using the PostgreSQL connection details. If you're running the server on a custom port, set the environment variable before starting the studio: `PGPORT=5433 npx local-pg start:studio`
 
 ## Other Tools
 
@@ -230,14 +229,13 @@ import { startPGliteServer } from 'local-pg';
 // Start server programmatically
 const server = await startPGliteServer({
   db: './my-app-db',
-  dbname: 'myappdb', // Custom database name
   port: 5432,
   host: 'localhost',
   debug: 1
 });
 
 console.log('Connection string:', server.connectionString);
-// postgres://postgres@localhost:5432/myappdb
+// postgres://postgres@localhost:5432/template1
 
 // Use the database
 const result = await server.db.query('SELECT * FROM users');
@@ -308,7 +306,7 @@ npm test
 ### Connection Refused
 ```bash
 # Make sure the server is running
-node server.js
+local-pg
 
 # Check if port is already in use
 lsof -i :5432
@@ -331,11 +329,11 @@ lsof -i :5432
 - **Development**: No need to install PostgreSQL locally
 - **Testing**: Isolated test databases for each test suite
 - **CI/CD**: Lightweight database for automated tests
-- **Prototyping**: Quick database setup with custom database names
+- **Prototyping**: Quick database setup for development
 - **Education**: Learning PostgreSQL without complex setup
 - **Database Management**: Built-in web IDE for SQL queries and data visualization
 - **Edge Computing**: Portable database for edge applications
-- **ORM Integration**: Use custom database names for compatibility with ORM tools
+- **ORM Integration**: Compatible with ORM tools
 - **Data Exploration**: Web interface for exploring and visualizing database content
 
 ## File Structure
@@ -348,16 +346,14 @@ local-pg/
 │   └── local-pg.js           # CLI executable
 ├── custom-handler.js         # Low-level socket implementation
 ├── test-client.js            # Connection test utility
-├── test-custom-db.js         # Custom database name test utility
-├── pgweb/                    # Web interface React app
-│   ├── package.json          # Web app dependencies
-│   ├── src/                  # React source code
-│   │   ├── app/              # Next.js app directory
-│   │   └── components/       # React components
-│   └── public/               # Static assets
+├── test-db-connection.js     # Database connection test utility
+├── web/
+│   └── local-pg-studio/      # Enhanced web interface
+│       ├── package.json      # Studio dependencies
+│       ├── app/              # Next.js app directory
+│       ├── components/       # React components
+│       └── lib/              # Utility functions
 ├── README.md                 # Main documentation
-├── CUSTOM_DB.md              # Custom database name documentation
-├── CUSTOM_DB_FEATURE.md      # Detailed feature documentation
 ├── LICENSE                   # MIT License
 └── .gitignore                # Git ignore rules
 ```

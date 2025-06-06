@@ -1,76 +1,73 @@
 # Custom Database Name Feature
 
-PGlite Socket now supports setting a custom database name that will be presented to PostgreSQL clients.
+## ⚠️ IMPORTANT: Feature Not Currently Supported
 
-## Overview
+**The custom database name feature is not currently supported by the underlying @electric-sql/pglite-socket package (v0.0.6).**
 
-The custom database name feature allows you to specify a database name other than the default `template1` that PostgreSQL clients will connect to. This can be useful for applications that expect specific database names or when you want to run multiple PGlite instances with different database names.
+## Current Status
 
-## Command Line Usage
+Despite being documented and included in the command-line interface and API, the custom database name feature does not actually work in the current implementation. All connections must use the default database name `template1`.
 
-To use a custom database name, use the `--dbname` option:
+## Default Database
+
+The default database name in PGlite is `template1`. All clients should connect using this database name:
 
 ```bash
-# Start with a custom database name
-local-pg --dbname=myappdb
+# Using psql
+psql -h localhost -p 5432 -U postgres template1
 
-# Combine with other options
-local-pg --dbname=production --port=5433 --db=./data/prod-db
+# Connection string format
+postgres://postgres@localhost:5432/template1
+
+# Check the database name within psql
+SELECT current_database();
 ```
 
-## Programmatic Usage
+## Command Line Usage (NOT WORKING)
 
-When using the API programmatically, specify the `dbname` option:
+The `--dbname` parameter is recognized but has no effect:
+
+```bash
+# This parameter is recognized but does not actually change the database name
+local-pg --dbname=myappdb
+```
+
+## Programmatic Usage (NOT WORKING)
+
+When using the API programmatically, the `dbname` option is also recognized but has no effect:
 
 ```javascript
 import { startPGliteServer } from 'local-pg';
 
 const server = await startPGliteServer({
   db: './my-app-db',
-  dbname: 'myappdb',
+  // This parameter is recognized but does not actually change the database name
+  // dbname: 'myappdb',
   port: 5432,
   host: 'localhost',
   debug: 0
 });
 
-// The connection string will use the custom database name
+// The connection string will use the default template1 database name
 console.log(server.connectionString);
-// postgres://postgres@localhost:5432/myappdb
+// postgres://postgres@localhost:5432/template1
 ```
 
-## Testing Custom Database Names
+## Future Support
 
-You can test if the custom database name is working correctly using the `test-custom-db.js` script:
+Future versions of PGlite Socket may add support for custom database names. This documentation will be updated when that feature becomes available.
 
-```bash
-# Start server with custom database name
-node custom-handler.js --dbname=customdb --port=5434
+## Workarounds
 
-# In another terminal, test the connection
-node test-custom-db.js
-```
+If your application requires a specific database name:
 
-You can also use any PostgreSQL client to connect:
+1. Configure your application to use `template1` as the database name
+2. If using an ORM, use its configuration to map to the correct database despite the name
+3. For applications that absolutely require a specific database name, you may need to use a full PostgreSQL installation instead
 
-```bash
-# Using psql
-psql -h localhost -p 5434 -U postgres customdb
+## Planned Use Cases
 
-# Check the database name within psql
-SELECT current_database();
-```
-
-## Implementation Details
-
-The custom database name is implemented at the PostgreSQL wire protocol level by the `PGLiteSocketHandler` class. When clients connect and request the specified database name, the handler will accept the connection regardless of the actual underlying PGlite database.
-
-## Limitations
-
-- PGlite supports only one connection at a time, regardless of the database name.
-- The custom database name is primarily for presentation and compatibility with clients that require specific database names.
-- The underlying database is still the same - this feature does not create separate database instances.
-
-## Use Cases
+When implemented, the custom database name feature will be useful for:
 
 - Integration with ORMs and frameworks that expect specific database names
 - Running multiple PGlite instances on different ports with different database names

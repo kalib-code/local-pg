@@ -15,6 +15,7 @@ export async function startPGliteServer(options = {}) {
     port: 5432,
     host: '127.0.0.1',
     debug: 0,
+    // Note: Custom database name is not supported by the underlying package
     ...options
   };
 
@@ -32,6 +33,7 @@ export async function startPGliteServer(options = {}) {
     db,
     port: config.port,
     host: config.host,
+    // dbname is not supported by the underlying pglite-socket package
   });
 
   await server.start();

@@ -10,15 +10,17 @@
   },
   "scripts": {
     "test": "node test-client.js",
-    "test:web": "node test-web-interface.js",
-    "setup:web": "node setup-web.js",
-    "prepublishOnly": "echo 'Ready to publish to npm' && npm run setup:web"
+    "test:studio": "node test-studio.js",
+    "setup:studio": "node setup-studio.js",
+    "start:studio": "node start-studio.js",
+    "prepublishOnly": "echo 'Ready to publish to npm' && npm run setup:studio"
   },
   "files": [
     "bin/",
     "lib/",
-    "pgweb/",
-    "setup-web.js",
+    "web/local-pg-studio/",
+    "setup-studio.js",
+    "start-studio.js",
     "README.md",
     "LICENSE"
   ],

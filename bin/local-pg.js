@@ -22,9 +22,7 @@ function parseArgs() {
     host: '127.0.0.1',
     debug: 0,
     inspect: false,
-    dbname: 'mydb', // Default database name
-    webInterface: true, // Enable web interface by default
-    webPort: 3000, // Default web interface port
+    webInterface: false, // Disable web interface by default (use studio instead)
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -38,14 +36,10 @@ function parseArgs() {
       config.host = arg.split('=')[1];
     } else if (arg.startsWith('--debug=')) {
       config.debug = parseInt(arg.split('=')[1]);
-    } else if (arg.startsWith('--dbname=')) {
-      config.dbname = arg.split('=')[1];
     } else if (arg === '--inspect') {
       config.inspect = true;
-    } else if (arg === '--no-web') {
-      config.webInterface = false;
-    } else if (arg.startsWith('--web-port=')) {
-      config.webPort = parseInt(arg.split('=')[1]);
+    } else if (arg === '--legacy-web') {
+      config.webInterface = true;
     }
   }
 
@@ -58,13 +52,11 @@ async function startServer() {
   console.log(chalk.bold.cyan('🚀 Starting Custom PGlite Socket Handler...'));
   console.log(`${chalk.bold.cyan('📊 Configuration:')}
   ${chalk.cyan('Database:')} ${config.db}
-  ${chalk.cyan('DB Name:')} ${config.dbname}
   ${chalk.cyan('Host:')} ${config.host}
   ${chalk.cyan('Port:')} ${config.port}
   ${chalk.cyan('Debug Level:')} ${config.debug}
   ${chalk.cyan('Inspect Mode:')} ${config.inspect ? 'Enabled' : 'Disabled'}
-  ${chalk.cyan('Web Interface:')} ${config.webInterface ? 'Enabled' : 'Disabled'}
-  ${config.webInterface ? chalk.cyan('Web Port:') + ' ' + config.webPort : ''}
+  ${chalk.cyan('Studio:')} Use 'local-pg start:studio' in another terminal to launch the UI
 `);
 
   try {
@@ -86,21 +78,54 @@ async function startServer() {
     // Create a handler
     const handler = new PGLiteSocketHandler({
       db,
-      dbname: config.dbname, // Custom database name
       closeOnDetach: true, // Automatically close socket when detached
       inspect: config.inspect, // Print protocol data for debugging
     });
+
+    // Track the current connection
+    let currentConnection = null;
 
     // Create a server that uses the handler
     const server = createServer(async (socket) => {
       try {
         console.log(chalk.yellow(`🔌 Client connecting from ${socket.remoteAddress}:${socket.remotePort}`));
+
+        // Check if there's already an active connection
+        if (currentConnection && !currentConnection.destroyed) {
+          console.log(chalk.yellow(`⚠️  Connection already exists. Sending friendly message to new client.`));
+
+          // Send a friendly message to the client before closing
+          // This simulates a PostgreSQL error message in wire protocol format
+          const errorBuffer = Buffer.from([
+            'E'.charCodeAt(0), // Error message type
+            0, 0, 0, 100,      // Message length (approximate)
+            'S'.charCodeAt(0), // Severity field
+            'E'.charCodeAt(0), 'R'.charCodeAt(0), 'R'.charCodeAt(0), 'O'.charCodeAt(0), 'R'.charCodeAt(0), 0, // ERROR
+            'M'.charCodeAt(0), // Message field
+          ]);
+
+          // Add the error message text
+          const message = "PGlite supports only ONE connection at a time. Wait for the current connection to close.";
+          const messageBuffer = Buffer.from(message + '\0');
+
+          // Combine buffers and write to socket
+          socket.write(Buffer.concat([errorBuffer, messageBuffer]));
+
+          // End the socket after a short delay
+          setTimeout(() => socket.end(), 100);
+          return;
+        }
+
         await handler.attach(socket);
         console.log(chalk.green(`✅ Client connected from ${socket.remoteAddress}:${socket.remotePort}`));
+        currentConnection = socket;
 
         // Listen for socket events
         socket.on('close', () => {
           console.log(chalk.yellow(`📴 Client disconnected from ${socket.remoteAddress}:${socket.remotePort}`));
+          if (currentConnection === socket) {
+            currentConnection = null;
+          }
         });
 
         socket.on('error', (err) => {
@@ -120,7 +145,7 @@ async function startServer() {
     server.listen(config.port, config.host, () => {
       const address = server.address();
       const dbHost = address.address === '::' || address.address === '0.0.0.0' ? 'localhost' : address.address;
-      const connectionString = `postgres://postgres@${dbHost}:${address.port}/${config.dbname}`;
+      const connectionString = `postgres://postgres@${dbHost}:${address.port}/template1`;
 
       // Launch web interface if enabled
       if (config.webInterface) {
@@ -130,7 +155,7 @@ async function startServer() {
             ...process.env,
             PGHOST: dbHost,
             PGPORT: String(address.port),
-            PGDATABASE: config.dbname,
+            PGDATABASE: 'template1',
             PGUSER: 'postgres',
             PORT: String(config.webPort)
           };
@@ -200,16 +225,20 @@ ${chalk.bold.green('🎉 PGlite Custom Socket Server is running!')}
 ${chalk.bold.cyan('Connection Details:')}
   ${chalk.cyan('Host:')} ${dbHost}
   ${chalk.cyan('Port:')} ${address.port}
-  ${chalk.cyan('Database:')} ${config.dbname}
+  ${chalk.cyan('Database:')} template1
   ${chalk.cyan('User:')} postgres ${chalk.gray('(no password required)')}
 
 ${chalk.bold.cyan('Connection String:')}
   ${chalk.yellow(connectionString)}
 
 ${chalk.bold.cyan('Connect using psql:')}
-  ${chalk.yellow(`psql -h ${dbHost} -p ${address.port} -U postgres ${config.dbname}`)}
+  ${chalk.yellow(`psql -h ${dbHost} -p ${address.port} -U postgres template1`)}
 
-${config.webInterface ? chalk.bold.cyan('Web Interface:') + '\n  ' + chalk.yellow(`http://localhost:${config.webPort}`) + '\n' : ''}
+${chalk.bold.cyan('Use Local PG Studio (recommended):')}
+  ${chalk.yellow(`local-pg start:studio`)} ${chalk.gray('(in another terminal)')}
+  ${chalk.gray('Then visit:')} ${chalk.yellow('http://localhost:3000')}
+
+${config.webInterface ? chalk.bold.cyan('Legacy Web Interface:') + '\n  ' + chalk.yellow(`http://localhost:${config.webPort}`) + '\n' : ''}
 ${chalk.bold.yellow('⚠️  Note:')} PGlite supports ${chalk.bold('only ONE connection at a time')}.
     If connection fails, ensure no other client is connected.
 
@@ -310,30 +339,36 @@ function showHelp() {
 ${chalk.bold.cyan('🐘 Local PG with Web Interface')} - ${chalk.cyan('PostgreSQL-compatible server with web IDE')}
 
 Usage:
-  local-pg [options]
+  local-pg [options]         Start the database server
+  local-pg setup:studio      Set up the Local PG Studio (one-time setup)
+  local-pg start:studio      Start the Local PG Studio web interface
 
-Options:
+Server Options:
   --db=<path>       Database path (default: memory://)
                     Examples:
                       memory://           - In-memory database
                       ./data/mydb         - Persistent file storage
                       /absolute/path/db   - Absolute path
 
-  --dbname=<name>      Custom database name (default: mydb)
   --port=<port>     Port to listen on (default: 5432)
   --host=<host>     Host to bind to (default: 127.0.0.1)
   --debug=<level>   Debug level 0-5 (default: 0)
   --inspect         Enable protocol inspection (prints raw data)
 
   # Web Interface Options
-  --no-web          Disable web interface
-  --web-port=<port> Web interface port (default: 3000)
+  --legacy-web      Enable legacy web interface (Studio is recommended instead)
 
 Examples:
-  # Start with default options (includes web interface)
+  # Start the server with default options
   local-pg
 
-  # Start in-memory database with debug output
+  # Set up Local PG Studio (do this once)
+  local-pg setup:studio
+
+  # Start Local PG Studio (in a separate terminal)
+  local-pg start:studio
+
+  # Start with in-memory database and debug output
   local-pg --db=memory:// --debug=1
 
   # Start persistent database on custom port
@@ -345,20 +380,65 @@ Examples:
   # Enable protocol inspection for debugging
   local-pg --inspect
 
-  # Use a custom database name
-  local-pg --dbname=customdb
-
-  # Use a custom web interface port
-  local-pg --web-port=8080
-
-  # Disable web interface
-  local-pg --no-web
+  # Use the legacy web interface
+  local-pg --legacy-web
 `);
+}
+
+// Special commands
+async function handleSpecialCommands() {
+  const args = process.argv.slice(2);
+
+  // Handle setup:studio command
+  if (args[0] === 'setup:studio') {
+    const { spawn } = await import('child_process');
+    const { dirname, join } = await import('path');
+    const { fileURLToPath } = await import('url');
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const setupPath = join(__dirname, '..', 'setup-studio.js');
+
+    console.log(chalk.bold.cyan('Running setup:studio script...'));
+    const process = spawn('node', [setupPath], { stdio: 'inherit' });
+    process.on('error', (err) => {
+      console.error(chalk.red(`Error running setup:studio: ${err.message}`));
+    });
+    return true;
+  }
+
+  // Handle start:studio command
+  if (args[0] === 'start:studio') {
+    const { spawn } = await import('child_process');
+    const { dirname, join } = await import('path');
+    const { fileURLToPath } = await import('url');
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const startPath = join(__dirname, '..', 'start-studio.js');
+
+    console.log(chalk.bold.cyan('Running start:studio script...'));
+    const process = spawn('node', [startPath], { stdio: 'inherit' });
+    process.on('error', (err) => {
+      console.error(chalk.red(`Error running start:studio: ${err.message}`));
+    });
+    return true;
+  }
+
+  return false;
 }
 
 // Main program entry point
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   showHelp();
+} else if (process.argv.length > 2 && process.argv[2].includes(':')) {
+  // Handle special commands like setup:studio or start:studio
+  handleSpecialCommands().then(handled => {
+    if (!handled) {
+      console.error(`Unknown command: ${process.argv[2]}`);
+      showHelp();
+    }
+  });
 } else {
   startServer();
 }
